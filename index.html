@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SLIME holder tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF3E2; --panel:#E2EAD0; --ink:#14261B; --muted:#5A6B55; --line:#C9D4B4;
+  --slime:#7BD21E; --gain:#35760A; --loss:#B8305F; --on-slime:#14261B;
+  --font:"Bricolage Grotesque",ui-rounded,"Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1912; --panel:#16251B; --ink:#E6F0D8; --muted:#93A58C; --line:#27392C;
+    --slime:#9BE83C; --gain:#A9EE55; --loss:#F0789F; --on-slime:#0E1912;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1912; --panel:#16251B; --ink:#E6F0D8; --muted:#93A58C; --line:#27392C;
+  --slime:#9BE83C; --gain:#A9EE55; --loss:#F0789F; --on-slime:#0E1912;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:400 16px/1.45 var(--font); font-variant-numeric:tabular-nums;
+  padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(40px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+}
+.wrap{max-width:1080px;margin:0 auto}
+a{color:inherit}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* header */
+h1{font-weight:800;font-size:clamp(2.4rem,9vw,4.75rem);line-height:.95;letter-spacing:-.035em;margin:0}
+#sub{margin:.6rem 0 0;color:var(--muted);max-width:52ch}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px;align-items:end}
+.controls label{display:grid;gap:4px;font-size:.8rem;color:var(--muted)}
+.controls label.wide{grid-column:1/-1}
+input,select{
+  background:var(--bg);border:1.5px solid var(--ink);border-radius:10px;
+  padding:10px 12px;min-height:44px;width:100%;font-size:1rem;
+}
+#run{
+  grid-column:1/-1;min-height:48px;border:0;cursor:pointer;font-weight:600;font-size:1.05rem;
+  background:var(--slime);color:var(--on-slime);border-radius:22px 26px 20px 28px/24px 20px 28px 22px;
+}
+#run:hover{filter:brightness(1.06)}
+@media (min-width:720px){
+  .controls{grid-template-columns:1.4fr 1fr 1fr auto}
+  .controls label.wide{grid-column:auto}
+  #run{grid-column:auto;padding:0 28px}
+}
+
+/* status */
+#status{margin-top:18px;min-height:1.4em;color:var(--muted);font-size:.95rem}
+#status.err{color:var(--loss)}
+.bar{height:8px;background:var(--panel);border-radius:8px;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--slime);border-radius:8px;transition:width .25s}
+
+/* stats */
+#stats{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 24px;margin-top:26px;padding-top:22px;border-top:1.5px solid var(--ink)}
+@media (min-width:720px){#stats{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:980px){#stats{grid-template-columns:repeat(6,1fr)}}
+.stat b{display:block;font-weight:800;font-size:1.9rem;line-height:1.05;letter-spacing:-.02em}
+.stat span{color:var(--muted);font-size:.85rem}
+.up{color:var(--gain)} .down{color:var(--loss)}
+
+/* holders chart */
+#chart{margin-top:30px}
+#chart h2,#tools h2{font-size:1rem;font-weight:600;margin:0 0 10px}
+.bars{display:flex;align-items:flex-end;gap:6px;height:150px}
+.bars .b{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.bars .v{font-size:.72rem;color:var(--muted);margin-bottom:3px;white-space:nowrap}
+.bars .col{width:100%;background:var(--slime);border-radius:9px 12px 3px 3px/12px 9px 3px 3px;min-height:2px}
+.bars .b:last-child .col{outline:1.5px solid var(--ink);outline-offset:-1.5px}
+.labels{display:flex;gap:6px;margin-top:6px}
+.labels span{flex:1;min-width:0;text-align:center;font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden}
+
+/* tools */
+#tools{margin-top:34px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  border:1.5px solid var(--ink);background:transparent;border-radius:999px;
+  padding:7px 13px;min-height:38px;cursor:pointer;font-size:.9rem;
+}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.chip small{opacity:.7;margin-left:4px}
+.row2{display:flex;gap:10px;margin-top:12px}
+.row2 input{flex:1}
+#csv{border:1.5px solid var(--ink);background:transparent;border-radius:10px;padding:0 14px;min-height:44px;cursor:pointer;white-space:nowrap}
+
+/* table */
+.tablewrap{margin-top:14px;overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:1.5px solid var(--ink)}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th{font-weight:600;font-size:.8rem;color:var(--muted);text-align:right;padding:0;white-space:nowrap}
+th button{background:none;border:0;cursor:pointer;padding:10px 8px;width:100%;text-align:inherit;font-weight:600;color:var(--muted)}
+th[aria-sort] button{color:var(--ink)}
+th[aria-sort="descending"] button::after{content:" ↓"} th[aria-sort="ascending"] button::after{content:" ↑"}
+th.l,td.l{text-align:left}
+td{padding:10px 8px;text-align:right;border-top:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+tr.r{cursor:pointer}
+tr.r:hover td{background:var(--panel)}
+td.rk{color:var(--muted);width:1%;text-align:left}
+.acct{background:none;border:0;padding:0;cursor:pointer;font-weight:600}
+.tag{font-size:.7rem;border:1px solid var(--muted);color:var(--muted);border-radius:6px;padding:1px 6px;margin-left:6px;font-style:normal}
+.tag.con{border-color:var(--ink);color:var(--ink)}
+.tag.pool{background:var(--slime);border-color:var(--slime);color:var(--on-slime)}
+.tag.lab{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+#tchips{margin-top:8px}
+#tstat{margin:8px 0 0;font-size:.82rem;color:var(--muted);min-height:1.2em}
+.kind{margin:12px 0 0;font-size:.9rem}
+.lbl{display:grid;gap:4px;margin-top:12px;font-size:.8rem;color:var(--muted);max-width:340px}
+td small{display:block;font-size:.75rem;opacity:.85}
+.dim{color:var(--muted)}
+.spark{display:block;margin-left:auto}
+.hs{display:none}
+@media (min-width:720px){.hs{display:table-cell}}
+
+/* detail */
+tr.d td{background:var(--panel);white-space:normal;text-align:left;padding:14px 12px 18px}
+.strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.cell{flex:0 0 auto;min-width:104px;border-left:2px solid var(--line);padding-left:8px}
+.cell em{font-style:normal;font-size:.75rem;color:var(--muted);display:block}
+.cell b{font-weight:600;display:block}
+.cell i{font-style:normal;font-size:.8rem}
+.dact{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-top:12px;font-size:.9rem}
+.dact button{border:1.5px solid var(--ink);background:transparent;border-radius:10px;padding:7px 12px;min-height:38px;cursor:pointer}
+.tx{margin-top:10px;width:100%;min-width:0}
+.tx td{background:transparent;border-top:1px solid var(--line);padding:7px 6px;font-size:.88rem}
+.tx td:first-child{text-align:left}
+.tx td.cp{text-align:left;white-space:normal;color:var(--muted)}
+#more{display:block;margin:16px auto 0;border:1.5px solid var(--ink);background:transparent;border-radius:10px;padding:10px 18px;min-height:44px;cursor:pointer}
+.empty{padding:26px 8px;color:var(--muted);text-align:left !important;white-space:normal}
+footer{margin-top:40px;color:var(--muted);font-size:.8rem;max-width:70ch}
+[hidden]{display:none !important}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="title">SLIME holders</h1>
+    <p id="sub">Every wallet's balance, and how it moved over the last six months.</p>
+    <div class="controls">
+      <label class="wide">Token ID
+        <input id="tok" value="0.0.10294707" inputmode="decimal" autocomplete="off" spellcheck="false">
+      </label>
+      <label>Network
+        <select id="net"><option value="mainnet">Mainnet</option><option value="testnet">Testnet</option></select>
+      </label>
+      <label>Snapshot every
+        <select id="step"><option value="month">Month</option><option value="2w">Two weeks</option><option value="week">Week</option></select>
+      </label>
+      <button id="run" type="button">Load balances</button>
+    </div>
+  </header>
+
+  <div id="status" role="status" aria-live="polite"></div>
+
+  <main id="out" hidden>
+    <section id="stats" aria-label="Summary"></section>
+    <section id="chart"></section>
+    <section id="tools">
+      <h2>Wallets</h2>
+      <div class="chips" id="chips"></div>
+      <div class="chips" id="tchips"></div>
+      <p id="tstat" role="status"></p>
+      <div class="row2">
+        <input id="q" type="search" placeholder="Find an account or label" autocomplete="off" spellcheck="false" aria-label="Find an account or label">
+        <button id="csv" type="button">Export CSV</button>
+      </div>
+    </section>
+    <div class="tablewrap">
+      <table>
+        <thead><tr id="head"></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+    <button id="more" type="button" hidden>Show 100 more</button>
+  </main>
+
+  <footer id="foot">
+    Balances come from the public Hedera mirror node. Each snapshot is the balance record closest to, and not after, the snapshot date.
+    Tap a wallet to see its balance at every snapshot and pull its individual transfers.
+    Contracts are confirmed against the mirror node. "Likely pool" is a guess: a contract that holds this token alongside one or two other fungible tokens. Labels you add are saved in this browser.
+  </footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+const NETS = {
+  mainnet: 'https://mainnet-public.mirrornode.hedera.com',
+  testnet: 'https://testnet.mirrornode.hedera.com'
+};
+const PAGE = 100;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const S = {
+  ctrl: null, base: NETS.mainnet, net: 'mainnet', token: '', info: null, div: 1, decimals: 0,
+  snaps: [], rows: [], supply: 0, filter: 'all', q: '', sort: { k: 'now', dir: -1 },
+  shown: PAGE, open: new Set(), tx: new Map(), balFilter: true,
+  types: new Map(), tfilter: 'all', labels: {}, runId: 0, meta: new Map(), collectors: new Set(), typed: 0
+};
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const kindOf = a => { const t = S.types.get(a); return !t ? null : t.t === 'contract' && t.pool ? 'pool' : t.t; };
+
+/* ---------- mirror node ---------- */
+class NetError extends Error {}
+async function api(path, signal) {
+  const url = path.startsWith('http') ? path : S.base + path;
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try { res = await fetch(url, { signal, headers: { accept: 'application/json' } }); }
+    catch (e) {
+      if (signal && signal.aborted) throw e;
+      if (attempt >= 2) throw new NetError('unreachable');
+      await sleep(400 * (attempt + 1)); continue;
+    }
+    if (res.ok) return res.json();
+    if ((res.status === 429 || res.status >= 500) && attempt < 4) { await sleep(600 * 2 ** attempt); continue; }
+    const err = new Error('Mirror node returned ' + res.status); err.status = res.status; throw err;
+  }
+}
+
+async function fetchSnapshot(snap, signal, onPage) {
+  const map = new Map();
+  const build = () => `/api/v1/tokens/${S.token}/balances?limit=100&order=desc`
+    + (S.balFilter ? '&account.balance=gt:0' : '')
+    + (snap.isNow ? '' : `&timestamp=lte:${Math.floor(snap.ms / 1000)}.000000000`);
+  let path = build(), first = true, actual = null;
+  while (path) {
+    let j;
+    try { j = await api(path, signal); }
+    catch (e) {
+      // Some mirror node versions reject the balance filter; fall back to reading every associated account.
+      if (first && e.status === 400 && S.balFilter) { S.balFilter = false; path = build(); continue; }
+      throw e;
+    }
+    first = false;
+    if (!actual && j.timestamp) actual = j.timestamp;
+    for (const b of j.balances || []) if (b.balance > 0) map.set(b.account, b.balance);
+    onPage(map.size);
+    path = j.links && j.links.next;
+  }
+  snap.map = map; snap.actual = actual;
+}
+
+/* ---------- dates ---------- */
+function monthsBack(d, n) {
+  const r = new Date(d), day = r.getDate();
+  r.setDate(1); r.setMonth(r.getMonth() - n);
+  const dim = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
+  r.setDate(Math.min(day, dim));
+  return r;
+}
+function snapshotTimes(step) {
+  const now = new Date(), start = monthsBack(now, 6), out = [];
+  if (step === 'month') { for (let i = 6; i >= 1; i--) out.push(monthsBack(now, i)); }
+  else {
+    const gap = (step === 'week' ? 7 : 14) * 864e5, t = [];
+    for (let ms = now.getTime() - gap; ms - start.getTime() > gap / 2; ms -= gap) t.push(new Date(ms));
+    out.push(start, ...t.reverse());
+  }
+  out.push(now);
+  return out.map((d, i, a) => ({
+    ms: d.getTime(), isNow: i === a.length - 1, map: new Map(), actual: null,
+    label: i === a.length - 1 ? 'Now' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  }));
+}
+const longDate = ms => new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+
+/* ---------- formatting ---------- */
+let nf = new Intl.NumberFormat();
+const fmt = v => nf.format(v);
+const signed = v => (v > 0 ? '+' : v < 0 ? '\u2212' : '') + nf.format(Math.abs(v));
+const pctFmt = v => (v > 0 ? '+' : v < 0 ? '\u2212' : '') + (Math.abs(v) >= 1000 ? Math.round(Math.abs(v)).toLocaleString() : Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0)) + '%';
+const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'dim';
+
+/* ---------- run ---------- */
+async function run() {
+  if (S.ctrl) { S.ctrl.abort(); return; }
+  const token = $('#tok').value.trim();
+  if (!/^\d+\.\d+\.\d+$/.test(token)) return status('Enter a token ID like 0.0.10294707.', true);
+  S.net = $('#net').value; S.base = NETS[S.net]; S.token = token; S.balFilter = true;
+  S.open.clear(); S.tx.clear(); S.shown = PAGE; S.filter = 'all'; S.q = ''; $('#q').value = '';
+  S.types.clear(); S.tfilter = 'all'; S.typed = 0; S.meta.clear(); S.labels = store.get('hts-labels-' + S.net);
+  const runId = ++S.runId; $('#tstat').textContent = '';
+  const step = $('#step').value;
+  try { history.replaceState(null, '', `?token=${token}&net=${S.net}&step=${step}`); } catch (e) {}
+  S.ctrl = new AbortController(); const signal = S.ctrl.signal;
+  $('#run').textContent = 'Stop'; $('#out').hidden = true;
+  try {
+    status('Reading token details…', false, 0);
+    const info = await api(`/api/v1/tokens/${token}`, signal);
+    S.info = info; S.decimals = Number(info.decimals) || 0; S.div = 10 ** S.decimals;
+    nf = new Intl.NumberFormat(undefined, { maximumFractionDigits: Math.min(S.decimals, 4) });
+    const sym = info.symbol || info.name || token;
+    $('#title').textContent = sym + ' holders';
+    document.title = sym + ' holder tracker';
+
+    const snaps = snapshotTimes(step);
+    const created = info.created_timestamp ? parseFloat(info.created_timestamp) * 1000 : 0;
+    let next = 0, done = 0; const reading = new Map();
+    const tick = () => {
+      let wallets = 0; reading.forEach(n => wallets += n);
+      status(`Reading snapshot ${Math.min(done + 1, snaps.length)} of ${snaps.length} · ${wallets.toLocaleString()} balances read`, false, done / snaps.length);
+    };
+    const worker = async () => {
+      while (next < snaps.length) {
+        const s = snaps[next++];
+        if (!s.isNow && created && s.ms < created) s.before = true;
+        else await fetchSnapshot(s, signal, n => { reading.set(s, n); tick(); });
+        done++; tick();
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    S.snaps = snaps;
+    const cf = info.custom_fees || {};
+    S.collectors = new Set([].concat(cf.fixed_fees || [], cf.fractional_fees || [], cf.royalty_fees || []).map(f => f.collector_account_id).filter(Boolean));
+    build();
+    classify(runId);
+    status(`${S.rows.length.toLocaleString()} wallets across ${snaps.length} snapshots, ${longDate(snaps[0].ms)} to today.`);
+    $('#sub').textContent = `Every wallet's balance, and how it moved since ${longDate(snaps[0].ms)}.`;
+    $('#out').hidden = false;
+  } catch (e) {
+    if (signal.aborted) status('Stopped.');
+    else if (e instanceof NetError) status(window.claude
+      ? "This published page can't reach the Hedera mirror node: published artifacts block requests to outside sites. Download the HTML file from the chat and open it in a browser tab, or host it (GitHub Pages works)."
+      : "Couldn't reach the Hedera mirror node. In-app previews block outside requests, so open this file in a browser tab or host it (GitHub Pages works), then load again.", true);
+    else if (e.status === 404) status(`No token found at ${token} on ${S.net}. Check the ID and network.`, true);
+    else status((e.message || 'Something went wrong') + '. Load again to retry.', true);
+  } finally {
+    S.ctrl = null; $('#run').textContent = 'Load balances';
+  }
+}
+
+function status(msg, isErr, progress) {
+  const el = $('#status');
+  el.className = isErr ? 'err' : '';
+  el.innerHTML = esc(msg) + (progress != null ? `<div class="bar"><i style="width:${Math.round(progress * 100)}%"></i></div>` : '');
+}
+
+/* ---------- derive ---------- */
+function build() {
+  const { snaps, div } = S, last = snaps.length - 1;
+  const accts = new Set();
+  snaps.forEach(s => s.map.forEach((_, a) => accts.add(a)));
+  const rows = [];
+  accts.forEach(acct => {
+    const raw = snaps.map(s => s.map.get(acct) || 0);
+    const series = raw.map(v => v / div);
+    const start = series[0], now = series[last], delta = (raw[last] - raw[0]) / div;
+    const cat = !raw[0] && raw[last] ? 'new' : raw[0] && !raw[last] ? 'emptied' : !raw[0] && !raw[last] ? 'passed'
+      : delta > 0 ? 'gained' : delta < 0 ? 'lost' : 'flat';
+    rows.push({ acct, series, start, now, delta, pct: start ? delta / start * 100 : null, cat, share: 0, rank: 0 });
+  });
+  const held = rows.reduce((t, r) => t + r.now, 0);
+  S.supply = Number(S.info.total_supply) / div || held;
+  rows.sort((a, b) => b.now - a.now);
+  rows.forEach((r, i) => { r.rank = r.now > 0 ? i + 1 : 0; r.share = S.supply ? r.now / S.supply * 100 : 0; });
+  S.rows = rows;
+  renderStats(); renderChart(); renderChips(); renderTypeChips(); renderHead(); renderBody();
+}
+
+const FILTERS = {
+  all: { label: 'All', f: () => true },
+  gained: { label: 'Gained', f: r => r.delta > 0 },
+  lost: { label: 'Lost', f: r => r.delta < 0 },
+  new: { label: 'New', f: r => r.cat === 'new' },
+  emptied: { label: 'Emptied', f: r => r.cat === 'emptied' },
+  flat: { label: 'No change', f: r => r.cat === 'flat' },
+  passed: { label: 'In and out', f: r => r.cat === 'passed' }
+};
+
+const TYPES = {
+  all: { label: 'All types', f: () => true },
+  wallet: { label: 'Wallets', f: r => kindOf(r.acct) === 'wallet' },
+  contract: { label: 'Contracts', f: r => { const k = kindOf(r.acct); return k === 'contract' || k === 'pool'; } },
+  pool: { label: 'Likely pools', f: r => kindOf(r.acct) === 'pool' },
+  labelled: { label: 'Labelled', f: r => !!S.labels[r.acct] }
+};
+
+/* ---------- account types ---------- */
+function tokenMeta(id) {
+  if (!S.meta.has(id)) S.meta.set(id, api(`/api/v1/tokens/${id}`).then(j => ({ symbol: j.symbol || id, fungible: j.type === 'FUNGIBLE_COMMON' })).catch(() => ({ symbol: id, fungible: false })));
+  return S.meta.get(id);
+}
+async function classify(runId) {
+  const key = 'hts-types-' + S.net, cache = store.get(key), token = S.token;
+  const queue = S.rows.map(r => r.acct);
+  let i = 0, last = 0;
+  const live = () => S.runId === runId;
+  const paint = force => {
+    if (!live()) return;
+    const t = Date.now(); if (!force && t - last < 1200) return; last = t;
+    $('#tstat').textContent = S.typed < queue.length ? `Checking account types: ${S.typed.toLocaleString()} of ${queue.length.toLocaleString()}` : '';
+    renderStats(); renderTypeChips();
+    const a = document.activeElement;
+    if (!(a && a.matches && a.matches('[data-label]'))) renderBody();
+  };
+  const one = async acct => {
+    let k = cache[acct];
+    if (!k) {
+      try { await api(`/api/v1/contracts/${acct}`); k = 'c'; }
+      catch (e) { if (e.status === 404) k = 'w'; else return; }
+      cache[acct] = k;
+    }
+    const info = { t: k === 'c' ? 'contract' : 'wallet', pool: false, pair: [] };
+    if (k === 'c') {
+      try {
+        const j = await api(`/api/v1/accounts/${acct}/tokens?limit=100`);
+        const others = (j.tokens || []).filter(t => t.balance > 0 && t.token_id !== token).map(t => t.token_id);
+        if (others.length && others.length <= 6) {
+          const metas = await Promise.all(others.map(tokenMeta));
+          const fung = metas.filter(m => m.fungible);
+          info.pair = fung.map(m => m.symbol);
+          info.pool = fung.length >= 1 && fung.length <= 2;
+        }
+      } catch (e) {}
+    }
+    if (live()) S.types.set(acct, info);
+  };
+  const worker = async () => { while (i < queue.length && live()) { await one(queue[i++]); S.typed++; paint(); } };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  if (live()) { store.set(key, cache); paint(true); }
+}
+function renderTypeChips() {
+  $('#tchips').innerHTML = Object.entries(TYPES).map(([k, d]) => {
+    const n = S.rows.filter(d.f).length;
+    if (!n && k !== 'all' && S.tfilter !== k) return '';
+    return `<button class="chip" type="button" data-t="${k}" aria-pressed="${S.tfilter === k}">${d.label}${k === 'all' ? '' : `<small>${n.toLocaleString()}</small>`}</button>`;
+  }).join('');
+}
+function tags(acct) {
+  const k = kindOf(acct), t = S.types.get(acct); let h = '';
+  if (S.labels[acct]) h += `<em class="tag lab">${esc(S.labels[acct])}</em>`;
+  if (acct === S.info.treasury_account_id) h += '<em class="tag">treasury</em>';
+  if (S.collectors.has(acct)) h += '<em class="tag">fee collector</em>';
+  if (k === 'pool') h += `<em class="tag pool">likely pool${t.pair.length ? ' · ' + esc(t.pair.join(' / ')) : ''}</em>`;
+  else if (k === 'contract') h += '<em class="tag con">contract</em>';
+  else if (Number(acct.split('.')[2]) <= 1000) h += '<em class="tag">system</em>';
+  return h;
+}
+
+/* ---------- render ---------- */
+function renderStats() {
+  const { rows, snaps } = S;
+  const nowN = rows.filter(r => r.now > 0).length, startN = rows.filter(r => r.start > 0).length;
+  const net = nowN - startN;
+  const top10 = rows.slice(0, 10).reduce((t, r) => t + r.share, 0);
+  const stat = (v, l, c) => `<div class="stat"><b class="${c || ''}">${v}</b><span>${l}</span></div>`;
+  $('#stats').innerHTML =
+    stat(nowN.toLocaleString(), 'wallets holding now') +
+    stat((net > 0 ? '+' : net < 0 ? '\u2212' : '') + Math.abs(net).toLocaleString(), `net holders since ${esc(snaps[0].label)}`, cls(net)) +
+    stat(rows.filter(r => r.cat === 'new').length.toLocaleString(), 'new wallets') +
+    stat(rows.filter(r => r.cat === 'emptied').length.toLocaleString(), 'wallets emptied') +
+    stat(top10.toFixed(1) + '%', 'of supply in the top 10') +
+    stat(rows.reduce((t, r) => t + (TYPES.contract.f(r) ? r.share : 0), 0).toFixed(1) + '%', S.typed < rows.length ? 'of supply in contracts (so far)' : 'of supply in contracts');
+}
+
+function renderChart() {
+  const { snaps } = S;
+  const counts = snaps.map(s => s.map.size), max = Math.max(...counts, 1);
+  const every = Math.ceil(snaps.length / 8);
+  $('#chart').innerHTML = `<h2>Wallets holding ${esc(S.info.symbol || 'the token')} at each snapshot</h2>
+    <div class="bars" role="img" aria-label="Holder count per snapshot: ${snaps.map((s, i) => esc(s.label) + ' ' + counts[i]).join(', ')}">
+      ${snaps.map((s, i) => `<div class="b"><span class="v">${snaps.length <= 8 || i % every === 0 || s.isNow ? counts[i].toLocaleString() : ''}</span><div class="col" style="height:${counts[i] / max * 82}%"></div></div>`).join('')}
+    </div>
+    <div class="labels">${snaps.map((s, i) => `<span>${snaps.length <= 8 || i % every === 0 || s.isNow ? esc(s.label) : ''}</span>`).join('')}</div>`;
+}
+
+function renderChips() {
+  $('#chips').innerHTML = Object.entries(FILTERS).map(([k, d]) => {
+    const n = S.rows.filter(d.f).length;
+    if (!n && k !== 'all') return '';
+    return `<button class="chip" type="button" data-f="${k}" aria-pressed="${S.filter === k}">${d.label}<small>${n.toLocaleString()}</small></button>`;
+  }).join('');
+}
+
+const COLS = [
+  { k: 'rank', label: '#', c: 'l' }, { k: 'acct', label: 'Account', c: 'l' }, { k: 'now', label: 'Balance' },
+  { k: 'share', label: 'Share' }, { k: 'start', label: 'Start', c: 'hs' }, { k: 'delta', label: 'Change' }, { k: null, label: '6 months' }
+];
+function renderHead() {
+  COLS[4].label = S.snaps[0].label;
+  $('#head').innerHTML = COLS.map(c => {
+    const on = c.k && S.sort.k === c.k;
+    return `<th class="${c.c || ''}"${on ? ` aria-sort="${S.sort.dir < 0 ? 'descending' : 'ascending'}"` : ''}>${c.k ? `<button type="button" data-k="${c.k}">${esc(c.label)}</button>` : `<button type="button" disabled style="cursor:default">${c.label}</button>`}</th>`;
+  }).join('');
+}
+
+function view() {
+  const f = FILTERS[S.filter].f, tf = TYPES[S.tfilter].f, q = S.q.toLowerCase();
+  const out = S.rows.filter(r => f(r) && tf(r) && (!q || r.acct.includes(q) || (S.labels[r.acct] || '').toLowerCase().includes(q)));
+  const { k, dir } = S.sort;
+  const acctNum = a => Number(a.split('.')[2]);
+  out.sort((a, b) => {
+    let x, y;
+    if (k === 'acct') { x = acctNum(a.acct); y = acctNum(b.acct); }
+    else if (k === 'rank') { x = a.rank || Infinity; y = b.rank || Infinity; }
+    else { x = a[k]; y = b[k]; }
+    return (x < y ? -1 : x > y ? 1 : 0) * dir || b.now - a.now;
+  });
+  return out;
+}
+
+function spark(series, c) {
+  const w = 88, h = 24, max = Math.max(...series) || 1, n = series.length - 1;
+  const pts = series.map((v, i) => [(i / n * w).toFixed(1), (h - 2 - v / max * (h - 4)).toFixed(1)]);
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0] + ' ' + p[1]).join('');
+  const col = c === 'down' ? 'var(--loss)' : c === 'up' ? 'var(--gain)' : 'var(--muted)';
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${line}L${w} ${h}L0 ${h}Z" fill="${col}" opacity=".18"/><path d="${line}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+function renderBody() {
+  const rows = view(), shown = rows.slice(0, S.shown);
+  let html = '';
+  for (const r of shown) {
+    const c = cls(r.delta), open = S.open.has(r.acct);
+    const sub = r.cat === 'new' ? 'new' : r.cat === 'emptied' ? 'emptied' : r.pct != null && r.delta ? pctFmt(r.pct) : '';
+    html += `<tr class="r" data-a="${r.acct}">
+      <td class="rk">${r.rank || '–'}</td>
+      <td class="l"><button class="acct" type="button" aria-expanded="${open}">${r.acct}</button>${tags(r.acct)}</td>
+      <td>${fmt(r.now)}</td>
+      <td class="dim">${r.share >= 0.01 ? r.share.toFixed(2) + '%' : r.share > 0 ? '&lt;0.01%' : '–'}</td>
+      <td class="dim hs">${fmt(r.start)}</td>
+      <td class="${c}">${r.delta ? signed(r.delta) : '0'}${sub ? `<small>${sub}</small>` : ''}</td>
+      <td>${spark(r.series, c)}</td></tr>`;
+    if (open) html += detail(r);
+  }
+  if (!rows.length) html = `<tr><td colspan="7" class="empty">No wallets match. Clear the search or pick another filter.</td></tr>`;
+  $('#body').innerHTML = html;
+  const left = rows.length - shown.length;
+  $('#more').hidden = left <= 0;
+  if (left > 0) $('#more').textContent = `Show ${Math.min(PAGE, left)} more of ${left.toLocaleString()}`;
+}
+
+function detail(r) {
+  const { snaps } = S;
+  const cells = snaps.map((s, i) => {
+    const d = i ? r.series[i] - r.series[i - 1] : 0;
+    return `<div class="cell"><em>${esc(s.label)}</em><b>${fmt(r.series[i])}</b><i class="${cls(d)}">${i ? (Math.abs(d) * S.div >= 0.5 ? signed(d) : 'no change') : 'start'}</i></div>`;
+  }).join('');
+  const st = S.tx.get(r.acct);
+  let tx = '';
+  if (st) {
+    if (st.items.length) tx = `<table class="tx"><tbody>${st.items.map(t => `<tr>
+        <td><a href="https://hashscan.io/${S.net}/transaction/${t.ts}" target="_blank" rel="noopener">${new Date(parseFloat(t.ts) * 1000).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</a></td>
+        <td class="${cls(t.amt)}">${signed(t.amt)}</td>
+        <td class="cp">${t.others.length ? (t.amt > 0 ? 'from ' : 'to ') + t.others.slice(0, 2).join(', ') + (t.others.length > 2 ? ` +${t.others.length - 2}` : '') : esc(t.name || '')}</td></tr>`).join('')}</tbody></table>`;
+    else if (!st.loading && !st.err) tx = `<p class="dim">No ${esc(S.info.symbol || 'token')} transfers in the ${st.scanned.toLocaleString()} transactions checked${st.done ? '' : ' so far'}.</p>`;
+    if (st.err) tx += `<p class="down">${esc(st.err)}</p>`;
+  }
+  const btn = !st ? `Load transfers since ${esc(snaps[0].label)}` : st.loading ? 'Loading transfers…' : st.done ? '' : 'Load older transfers';
+  return `<tr class="d"><td colspan="7">
+    <div class="strip">${cells}</div>
+    ${kindLine(r.acct)}
+    ${tx}
+    <div class="dact">
+      ${btn ? `<button type="button" data-tx="${r.acct}"${st && st.loading ? ' disabled' : ''}>${btn}</button>` : ''}
+      <a href="https://hashscan.io/${S.net}/${kindOf(r.acct) === 'wallet' || !kindOf(r.acct) ? 'account' : 'contract'}/${r.acct}" target="_blank" rel="noopener">Open ${r.acct} on HashScan</a>
+    </div>
+    <label class="lbl">Label for this account
+      <input data-label="${r.acct}" value="${esc(S.labels[r.acct] || '')}" placeholder="e.g. Staking contract, LP, team" maxlength="40" autocomplete="off">
+    </label></td></tr>`;
+}
+function kindLine(acct) {
+  const k = kindOf(acct), t = S.types.get(acct);
+  const sym = esc(S.info.symbol || 'this token');
+  const txt = !k ? 'Account type not checked yet.'
+    : k === 'wallet' ? 'Standard account (key-controlled wallet).'
+    : k === 'pool' ? `Smart contract that also holds ${esc(t.pair.join(' and '))}. That pairing usually means a liquidity pool for ${sym}.`
+    : `Smart contract${t.pair.length ? ' that also holds ' + esc(t.pair.join(', ')) : ''}. Not a standard wallet, e.g. staking, escrow, router or vault.`;
+  return `<p class="kind">${txt}</p>`;
+}
+
+/* ---------- per-wallet transfers ---------- */
+async function loadTx(acct) {
+  let st = S.tx.get(acct);
+  if (!st) { st = { items: [], next: null, done: false, loading: false, err: null, scanned: 0 }; S.tx.set(acct, st); }
+  if (st.loading || st.done) return;
+  st.loading = true; st.err = null; renderBody();
+  const token = S.token;
+  try {
+    let path = st.next || `/api/v1/transactions?account.id=${acct}&timestamp=gte:${Math.floor(S.snaps[0].ms / 1000)}.000000000&order=desc&limit=100`;
+    for (let p = 0; p < 3 && path; p++) {
+      const j = await api(path);
+      if (S.token !== token) return;
+      for (const t of j.transactions || []) {
+        st.scanned++;
+        const tt = (t.token_transfers || []).filter(x => x.token_id === token);
+        let mine = 0; tt.forEach(x => { if (x.account === acct) mine += x.amount; });
+        if (!mine) continue;
+        const others = [...new Set(tt.filter(x => x.account !== acct && Math.sign(x.amount) !== Math.sign(mine)).map(x => x.account))];
+        st.items.push({ ts: t.consensus_timestamp, amt: mine / S.div, others, name: t.name });
+      }
+      path = j.links && j.links.next;
+    }
+    st.next = path; st.done = !path;
+  } catch (e) {
+    st.err = e instanceof NetError ? "Couldn't reach the mirror node. Try again." : (e.message || 'Request failed') + '. Try again.';
+  }
+  st.loading = false; renderBody();
+}
+
+/* ---------- export ---------- */
+async function exportCsv() {
+  const head = ['account', ...S.snaps.map(s => s.isNow ? 'now' : new Date(s.ms).toISOString().slice(0, 10)), 'change', 'change_pct', 'share_pct', 'status', 'type', 'label'];
+  const lines = [head.join(',')];
+  for (const r of view()) lines.push([r.acct, ...r.series, r.delta, r.pct == null ? '' : r.pct.toFixed(2), r.share.toFixed(4), r.cat, kindOf(r.acct) || 'unchecked', '"' + (S.labels[r.acct] || '').replace(/"/g, '""') + '"'].join(','));
+  const name = `${String(S.info.symbol || S.token).replace(/[^\w.-]+/g, '_')}-balances-${new Date().toISOString().slice(0, 10)}.csv`;
+  // Published artifact: saves go through the viewer's downloads capability.
+  const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+  if (dl) {
+    try { await dl.save({ filename: name, data: lines.join('\n') }); }
+    catch (e) { if (!e || e.code !== 'declined') status("Couldn't save the CSV here. Try again in a moment.", true); }
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* ---------- events ---------- */
+$('#run').addEventListener('click', run);
+$('#tok').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+$('#chips').addEventListener('click', e => {
+  const b = e.target.closest('[data-f]'); if (!b) return;
+  S.filter = b.dataset.f; S.shown = PAGE; renderChips(); renderBody();
+});
+$('#tchips').addEventListener('click', e => {
+  const b = e.target.closest('[data-t]'); if (!b) return;
+  S.tfilter = b.dataset.t; S.shown = PAGE; renderTypeChips(); renderBody();
+});
+$('#body').addEventListener('change', e => {
+  const inp = e.target.closest('[data-label]'); if (!inp) return;
+  const v = inp.value.trim();
+  if (v) S.labels[inp.dataset.label] = v; else delete S.labels[inp.dataset.label];
+  store.set('hts-labels-' + S.net, S.labels); renderTypeChips(); renderBody();
+});
+$('#q').addEventListener('input', e => { S.q = e.target.value.trim(); S.shown = PAGE; renderBody(); });
+$('#head').addEventListener('click', e => {
+  const b = e.target.closest('[data-k]'); if (!b) return;
+  const k = b.dataset.k;
+  S.sort = S.sort.k === k ? { k, dir: -S.sort.dir } : { k, dir: k === 'acct' || k === 'rank' ? 1 : -1 };
+  S.shown = PAGE; renderHead(); renderBody();
+});
+$('#body').addEventListener('click', e => {
+  const tx = e.target.closest('[data-tx]');
+  if (tx) return loadTx(tx.dataset.tx);
+  if (e.target.closest('a') || e.target.closest('tr.d')) return;
+  const tr = e.target.closest('tr.r'); if (!tr) return;
+  const a = tr.dataset.a;
+  S.open.has(a) ? S.open.delete(a) : S.open.add(a);
+  renderBody();
+});
+$('#more').addEventListener('click', () => { S.shown += PAGE; renderBody(); });
+$('#csv').addEventListener('click', exportCsv);
+
+/* ---------- start ---------- */
+try {
+  const p = new URLSearchParams(location.search);
+  if (/^\d+\.\d+\.\d+$/.test(p.get('token') || '')) $('#tok').value = p.get('token');
+  if (NETS[p.get('net')]) $('#net').value = p.get('net');
+  if (['month', '2w', 'week'].includes(p.get('step'))) $('#step').value = p.get('step');
+} catch (e) {}
+run();
+})();
+</script>
+</body>
+</html>
